@@ -1,3 +1,11 @@
+#![warn(
+    clippy::all,
+    clippy::style,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::pedantic
+)]
+
 use clap::Parser;
 use reservoir_sampling::unweighted::l as sample;
 use std::{
