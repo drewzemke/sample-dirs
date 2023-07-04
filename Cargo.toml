@@ -1,0 +1,11 @@
+[package]
+name = "sample_dirs"
+version = "0.1.0"
+edition = "2021"
+description = "Randomly samples the top-level subdirectories of a given directory, and places the results in an output directory."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.3.10", features = ["derive"] }
+reservoir-sampling = "0.5.1"
