@@ -8,7 +8,11 @@
 
 use clap::Parser;
 use reservoir_sampling::unweighted::l as sample;
-use std::{error::Error, fs, io, path::PathBuf};
+use std::{
+    error::Error,
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Randomly samples the top-level subdirectories of a given directory, and places the results in an output directory.
 #[derive(Parser, Debug)]
@@ -30,25 +34,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     // gather list of subdirectories
-    let subdirectories = read_subdirs(&args.in_dir)
-        .map_err(|e| format!("Could not read directory '{}': {e}", args.in_dir.display()))?;
+    let subdirectories = read_dir(&args.in_dir, &ReadTarget::Dirs)?;
 
     // get the list of files to copy
-    let files: Vec<PathBuf> = subdirectories
+    let files = subdirectories
         .iter()
-        .flat_map(|dir| {
+        .map(|dir| {
             // read files in subdirec
-            let files = fs::read_dir(dir)
-                .unwrap()
-                .map(|entry| entry.unwrap().path())
-                .filter(|path| path.is_file());
+            let files = read_dir(dir, &ReadTarget::Files)?;
 
             let mut sampled_files = vec![PathBuf::new(); args.number];
-
-            sample(files, &mut sampled_files);
-            sampled_files
+            sample(files.into_iter(), &mut sampled_files);
+            Ok(sampled_files)
         })
-        .collect();
+        .collect::<std::result::Result<Vec<Vec<PathBuf>>, String>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
     // create the output directories
     for in_subdir in &subdirectories {
@@ -59,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // copy files to output directory
-    for in_path in &files {
+    for in_path in files.iter() {
         let out_path = args
             .out_dir
             .join(in_path.strip_prefix(&args.in_dir).unwrap());
@@ -69,12 +71,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn read_subdirs(dir: &PathBuf) -> io::Result<Vec<PathBuf>> {
-    let dirs = fs::read_dir(dir)?
-        .collect::<Result<Vec<_>, _>>()?
+enum ReadTarget {
+    Files,
+    Dirs,
+}
+fn read_dir(dir: &PathBuf, target: &ReadTarget) -> Result<Vec<PathBuf>, String> {
+    let filter = match target {
+        ReadTarget::Files => Path::is_file,
+        ReadTarget::Dirs => Path::is_dir,
+    };
+    let dirs = fs::read_dir(dir)
+        .map_err(|e| format!("Could not read directory '{}': {e}", dir.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Could not read directory '{}': {e}", dir.display()))?
         .into_iter()
         .map(|entry| entry.path())
-        .filter(|path| path.is_dir())
+        .filter(|path| filter(path))
         .collect();
     Ok(dirs)
 }
