@@ -54,18 +54,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // create the output directories
     for in_subdir in &subdirectories {
-        let out_subdir = args
-            .out_dir
-            .join(in_subdir.strip_prefix(&args.in_dir).unwrap());
-        fs::create_dir_all(out_subdir).unwrap();
+        let path = in_subdir.strip_prefix(&args.in_dir)?;
+        let out_subdir = args.out_dir.join(path);
+        fs::create_dir_all(out_subdir)
+            .map_err(|e| format!("Could not create directory '{}': {e}", in_subdir.display()))?;
     }
 
     // copy files to output directory
-    for in_path in files.iter() {
-        let out_path = args
-            .out_dir
-            .join(in_path.strip_prefix(&args.in_dir).unwrap());
-        let _ = fs::copy(in_path, out_path).unwrap();
+    for in_path in &files {
+        let path = in_path.strip_prefix(&args.in_dir)?;
+        let out_path = args.out_dir.join(path);
+        fs::copy(in_path, &out_path)
+            .map_err(|e| format!("Could not write file '{}': {e}", out_path.display()))?;
     }
 
     Ok(())
