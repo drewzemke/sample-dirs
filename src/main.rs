@@ -42,12 +42,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(|dir| {
             // read files in subdirec
             let files = read_dir(dir, &ReadTarget::Files)?;
-
+            // error out if there are too few files
+            if files.len() < args.number {
+                return Err(format!(
+                    "The subdirectory '{}' only contains {} files, but at least {} are required",
+                    dir.display(),
+                    files.len(),
+                    args.number
+                ));
+            }
+            // randomly sample from the list of files
             let mut sampled_files = vec![PathBuf::new(); args.number];
             sample(files.into_iter(), &mut sampled_files);
             Ok(sampled_files)
         })
-        .collect::<std::result::Result<Vec<Vec<PathBuf>>, String>>()?
+        .collect::<Result<Vec<Vec<_>>, String>>()?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
