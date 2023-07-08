@@ -61,12 +61,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .flatten()
         .collect::<Vec<_>>();
 
-    // create the output directories
+    // create the output directories, and check that we're not about to overwrite stuff
     for in_subdir in &subdirectories {
         let path = in_subdir.strip_prefix(&args.in_dir)?;
         let out_subdir = args.out_dir.join(path);
-        fs::create_dir_all(out_subdir)
+        fs::create_dir_all(&out_subdir)
             .map_err(|e| format!("Could not create directory '{}': {e}", in_subdir.display()))?;
+        let out_subdir_files = read_dir(&out_subdir, &ReadTarget::Files)?;
+        if !out_subdir_files.is_empty() {
+            return Err(format!("The directory '{}' already contains files. Move them or choose a new output directory", out_subdir.display()).into());
+        }
     }
 
     // copy files to output directory
